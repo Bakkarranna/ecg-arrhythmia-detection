@@ -6,7 +6,6 @@ import numpy as np
 import pytest
 
 from ecg_arrhythmia import config, data, evaluate, features
-from ecg_arrhythmia.models import BeatCNN
 
 
 def test_rr_features_are_vectorized_and_correct():
@@ -60,6 +59,8 @@ def test_bandpass_preserves_shape_and_removes_dc():
 
 def test_beatcnn_forward_shapes():
     torch = pytest.importorskip("torch")
+    from ecg_arrhythmia.models import BeatCNN
+
     model = BeatCNN()
     waves = np.random.randn(8, config.BEAT_LEN).astype(np.float32)
     rr = np.random.randn(8, config.N_RR_FEATURES).astype(np.float32)
