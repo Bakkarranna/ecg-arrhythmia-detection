@@ -1,0 +1,92 @@
+{
+  "n_samples": 51149,
+  "macro_precision": 0.4186,
+  "macro_recall": 0.449,
+  "macro_f1": 0.4269,
+  "per_class": {
+    "N": {
+      "precision": 0.9461,
+      "recall": 0.9304,
+      "f1-score": 0.9382,
+      "support": 44240.0
+    },
+    "S": {
+      "precision": 0.081,
+      "recall": 0.0468,
+      "f1-score": 0.0593,
+      "support": 1837.0
+    },
+    "V": {
+      "precision": 0.497,
+      "recall": 0.7618,
+      "f1-score": 0.6015,
+      "support": 3220.0
+    },
+    "F": {
+      "precision": 0.0407,
+      "recall": 0.0361,
+      "f1-score": 0.0383,
+      "support": 388.0
+    },
+    "Q": {
+      "precision": 0.5284,
+      "recall": 0.4699,
+      "f1-score": 0.4975,
+      "support": 1464.0
+    }
+  },
+  "class_distribution": {
+    "N": 44240,
+    "S": 1837,
+    "V": 3220,
+    "F": 388,
+    "Q": 1464
+  },
+  "confusion_matrix": {
+    "labels": [
+      "N",
+      "S",
+      "V",
+      "F",
+      "Q"
+    ],
+    "matrix": [
+      [
+        41159,
+        572,
+        1730,
+        312,
+        467
+      ],
+      [
+        1205,
+        86,
+        488,
+        4,
+        54
+      ],
+      [
+        481,
+        180,
+        2453,
+        14,
+        92
+      ],
+      [
+        353,
+        0,
+        20,
+        14,
+        1
+      ],
+      [
+        307,
+        224,
+        245,
+        0,
+        688
+      ]
+    ]
+  },
+  "model": "RandomForest(rr_intervals)"
+}

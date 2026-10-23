@@ -1,0 +1,5 @@
+# Minimal deps for the test suite when the ML stack is not installed.
+numpy
+scipy
+scikit-learn
+pytest

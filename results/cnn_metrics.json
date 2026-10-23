@@ -1,0 +1,95 @@
+{
+  "n_samples": 51149,
+  "macro_precision": 0.4502,
+  "macro_recall": 0.5101,
+  "macro_f1": 0.4588,
+  "per_class": {
+    "N": {
+      "precision": 0.9749,
+      "recall": 0.7297,
+      "f1-score": 0.8347,
+      "support": 44240.0
+    },
+    "S": {
+      "precision": 0.0321,
+      "recall": 0.1502,
+      "f1-score": 0.0529,
+      "support": 1837.0
+    },
+    "V": {
+      "precision": 0.7885,
+      "recall": 0.8916,
+      "f1-score": 0.8369,
+      "support": 3220.0
+    },
+    "F": {
+      "precision": 0.0039,
+      "recall": 0.0335,
+      "f1-score": 0.0069,
+      "support": 388.0
+    },
+    "Q": {
+      "precision": 0.4518,
+      "recall": 0.7452,
+      "f1-score": 0.5625,
+      "support": 1464.0
+    }
+  },
+  "class_distribution": {
+    "N": 44240,
+    "S": 1837,
+    "V": 3220,
+    "F": 388,
+    "Q": 1464
+  },
+  "confusion_matrix": {
+    "labels": [
+      "N",
+      "S",
+      "V",
+      "F",
+      "Q"
+    ],
+    "matrix": [
+      [
+        32283,
+        7594,
+        399,
+        3186,
+        778
+      ],
+      [
+        781,
+        276,
+        236,
+        53,
+        491
+      ],
+      [
+        10,
+        184,
+        2871,
+        102,
+        53
+      ],
+      [
+        24,
+        266,
+        83,
+        13,
+        2
+      ],
+      [
+        17,
+        287,
+        52,
+        17,
+        1091
+      ]
+    ]
+  },
+  "model": "BeatCNN(1D CNN + RR features)",
+  "best_val_macro_f1": 0.3592,
+  "epochs_ran": 12,
+  "training_seconds": 1288.5
+}

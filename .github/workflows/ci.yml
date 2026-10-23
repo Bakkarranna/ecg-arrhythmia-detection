@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install (no torch: unit tests are pure numpy/scipy)
+        run: |
+          python -m pip install -U pip
+          pip install numpy scipy scikit-learn matplotlib pytest
+          pip install -e . --no-deps
+      - name: Run tests
+        run: pytest -q
+      - name: Lint
+        run: |
+          pip install ruff
+          ruff check src tests
+
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install with torch (CPU)
+        run: |
+          python -m pip install -U pip
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install numpy scipy scikit-learn wfdb matplotlib
+          pip install -e . --no-deps
+      - name: Import every module (catches API drift)
+        run: python -c "
+import importlib
+for m in ['config','data','download','features','preprocess','models','baseline','evaluate','train','visualize','results_table']:
+    importlib.import_module('ecg_arrhythmia.' + m)
+print('all modules import cleanly')
+"
