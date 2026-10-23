@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 jobs:
   test:
@@ -13,7 +14,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Install (no torch: unit tests are pure numpy/scipy)
+      - name: "Install (no torch: unit tests are pure numpy/scipy)"
         run: |
           python -m pip install -U pip
           pip install numpy scipy scikit-learn matplotlib pytest
@@ -38,10 +39,12 @@ jobs:
           pip install torch --index-url https://download.pytorch.org/whl/cpu
           pip install numpy scipy scikit-learn wfdb matplotlib
           pip install -e . --no-deps
-      - name: Import every module (catches API drift)
-        run: python -c "
-import importlib
-for m in ['config','data','download','features','preprocess','models','baseline','evaluate','train','visualize','results_table']:
-    importlib.import_module('ecg_arrhythmia.' + m)
-print('all modules import cleanly')
-"
+      - name: "Import every module (catches API drift)"
+        run: |
+          python -c '
+          import importlib
+          mods = ["config","data","download","features","preprocess","models","baseline","evaluate","train","visualize","results_table"]
+          for m in mods:
+              importlib.import_module("ecg_arrhythmia." + m)
+          print("all modules import cleanly")
+          '
