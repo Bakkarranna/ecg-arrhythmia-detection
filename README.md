@@ -19,13 +19,38 @@ inflated by leakage, on patients the models have never seen.
 
 Evaluated on **51,149 held-out DS2 beats** from 22 patients never used in
 training. Full per-class numbers: [results/cnn_metrics.json](results/cnn_metrics.json),
-[results/baseline_metrics.json](results/baseline_metrics.json).
+[results/baseline_metrics.json](results/baseline_metrics.json); the cross-model
+comparison table (Markdown + CSV) is generated into
+[results/results_table.md](results/results_table.md) and
+[results/results_table.csv](results/results_table.csv).
 
-The CNN gains ~3.2 macro-F1 points over the RR baseline. Both numbers are low
-in absolute terms, and that is expected and reported honestly: MIT-BIH's five
-AAMI classes are dominated by `N` (normal), the arrhythmic classes are tiny and
-noisy, and macro-F1 weights all five classes equally. `Q` (unknown/paced-ectopic
-leftovers) is the main drag on both models.
+Per-class breakdown — `support` is the number of DS2 beats in the class:
+
+| Class | Support | Baseline recall | Baseline F1 | CNN recall | CNN F1 |
+| --- | --- | --- | --- | --- | --- |
+| `N` normal | 44,240 | **0.9304** | **0.9382** | 0.7297 | 0.8347 |
+| `S` supraventricular | 1,837 | 0.0468 | 0.0593 | **0.1502** | **0.0529** |
+| `V` ventricular | 3,220 | 0.7618 | 0.6015 | **0.8916** | **0.8369** |
+| `F` fusion | 388 | **0.0361** | **0.0383** | 0.0335 | 0.0069 |
+| `Q` unknown | 1,464 | 0.4699 | 0.4975 | **0.7452** | **0.5625** |
+
+![Confusion matrix — RandomForest RR baseline on DS2](results/figures/confusion_baseline.png)
+
+![Confusion matrix — BeatCNN on DS2](results/figures/confusion_cnn.png)
+
+The CNN gains ~3.2 macro-F1 points over the RR baseline, but the per-class
+numbers show it is not a uniform win: it **buys** recall on the arrhythmic
+classes (V +13 pts, Q +28 pts, S roughly 3×) by **selling** `N` recall down
+~20 pts (0.93 → 0.73) — about 8,800 true-normal beats get re-labelled as
+arrhythmic. That is the expected price of a minority-heavy loss, and it is why
+bare accuracy would fall even though macro-F1 rises.
+
+Both numbers are low in absolute terms, and that is expected and reported
+honestly: MIT-BIH's five AAMI classes are dominated by `N` (normal), the
+arrhythmic classes are tiny and noisy, and macro-F1 weights all five classes
+equally. `Q` (unknown/paced-ectopic leftovers) and `F` (fusion, 388 beats) are
+the main drag on both models — `F` recall is near-zero in both, and no amount of
+tuning fixes a class with 388 test beats.
 
 ---
 
@@ -92,19 +117,62 @@ validation macro-F1. The CNN ran 12 epochs with validation early-stopping,
 the same 22 DS1 patients as training, which is also why both numbers are
 modest.)
 
+![Loss and DS1 validation macro-F1 across the 12 epochs](results/figures/training_curves.png)
+
 ## Figures
 
-All in [results/figures/](results/figures):
+All in [results/figures/](results/figures), all produced by
+`python -m ecg_arrhythmia.visualize` and committed to this repository:
 
-| Figure | What it shows |
-| --- | --- |
-| `class_distribution.png` | The ~88% `N` imbalance that motivates class weighting |
-| `ecg_strip_100.png` | Raw record 100 strip with annotated beats (sanity check on the data) |
-| `mean_beat_waveforms.png` | Per-class mean beat shape — the morphology signal the CNN uses |
-| `rr_intervals.png` | RR-interval distributions per class — the signal the baseline uses |
-| `training_curves.png` | Loss and macro-F1 across epochs |
-| `confusion_baseline.png` | Baseline confusion matrix on DS2 |
-| `confusion_cnn.png` | CNN confusion matrix on DS2 |
+### The class imbalance that motivates class weighting
+
+**Class distribution** — `N` is 44,240 of 51,149 beats (~86.5%) and `F` has only 388. This is the imbalance that motivates class weighting in both models:
+
+![AAMI five-way class distribution over the 51,149 DS2 test beats](results/figures/class_distribution.png)
+
+Without weighting, both models collapse toward predicting `N` everywhere and still score ~86% accuracy — which is exactly why bare accuracy is never reported here.
+
+### Raw-signal sanity check
+
+![Record 100 — raw MLII strip with annotated beats](results/figures/ecg_strip_100.png)
+
+A straight `wfdb` read of one record before any preprocessing. Used to confirm
+the download, the 360 Hz sampling and the annotation alignment are all correct
+before beats get cut.
+
+### What the CNN sees
+
+![Mean beat waveform per AAMI class, 252-sample windows](results/figures/mean_beat_waveforms.png)
+
+Per-class mean beat shape after the −0.25 s / +0.45 s window cut. The widened,
+notched `Q` and the sharp `V` shapes are the morphology signal the 1D CNN
+exploits — and the reason it beats the RR-only baseline on `V`.
+
+### What the baseline sees
+
+![RR-interval distributions per AAMI class](results/figures/rr_intervals.png)
+
+RR-interval distributions per class. This is the *only* signal the
+RandomForest receives — enough for a coarse heartbeat-rate story, and not enough
+to separate `S` from `F` or `V`, which is visible in its per-class numbers above.
+
+### Training
+
+![Loss and DS1 validation macro-F1 across the 12 epochs](results/figures/training_curves.png)
+
+Loss falls monotonically; validation macro-F1 plateaus around 0.35 after
+epoch 10, which is where early stopping picks the checkpoint (best 0.3592).
+
+### Where the two models disagree
+
+![Confusion matrix — RandomForest RR baseline on DS2](results/figures/confusion_baseline.png)
+
+![Confusion matrix — BeatCNN on DS2](results/figures/confusion_cnn.png)
+
+Rows are true class, columns predicted. Reading the two side by side: the
+baseline massed ~1,700 true `V` beats into `N` with high `N` recall, while the
+CNN moved most of them back to `V` (recall 0.89, F1 0.84) at the cost of
+roughly 8,800 true `N` beats leaking into `S`.
 
 ## Layout
 
@@ -120,12 +188,23 @@ src/ecg_arrhythmia/
   train.py         training loop, seeding, standardisation, early stopping
   evaluate.py      metrics + confusion matrix
   visualize.py     all figures
-  results_table.py cross-model comparison
+  results_table.py cross-model comparison table (CSV + Markdown)
 tests/             unit tests (pure numpy/scipy, no torch, no network)
 .github/workflows/ ci.yml  (test job + torch import-smoke job)
 requirements.txt   full deps; requirements-smoke.txt for the test suite alone
 notes.md           chronological decisions, data bugs, honesty rules
 ```
+
+## Results artefacts
+
+| File | Contents |
+| --- | --- |
+| [results/results_table.md](results/results_table.md) | Cross-model macro comparison (Markdown) |
+| [results/results_table.csv](results/results_table.csv) | Same table, machine-readable |
+| [results/cnn_metrics.json](results/cnn_metrics.json) | BeatCNN per-class metrics, confusion matrix, training metadata |
+| [results/baseline_metrics.json](results/baseline_metrics.json) | RandomForest per-class metrics and confusion matrix |
+| [results/train_history.json](results/train_history.json) | Per-epoch train loss and validation macro-F1 |
+| [results/figures/](results/figures) | All seven figures shown above |
 
 ## Reproduce
 
@@ -169,6 +248,10 @@ CI runs two jobs: a `test` job (pytest + ruff, minimal deps) and a `smoke` job
 
 - Macro-F1 is ~0.46; this is a legitimate, reproducible result on the hard
   five-way task, not a tuned state-of-the-art number.
+- The CNN's `N` recall (0.73) is *worse* than the baseline's (0.93), so despite
+  the better macro-F1 it produces far more false positives on normal beats. If
+  the deployment goal were "don't miss arrhythmias", `V` recall 0.89 with
+  precision 0.79 is the number to look at, not macro-F1.
 - `F` (fusion) and `V` are severely under-represented; per-class recall for them
   is poor and visible in the confusion matrices.
 - Only lead MLII is used; the second channel is ignored.
@@ -181,5 +264,5 @@ CI runs two jobs: a `test` job (pytest + ruff, minimal deps) and a `smoke` job
   Med & Biol, 2001.
 - de Chazal, O'Dwyer & Reilly, *Automatic classification of heartbeats using
   ECG morphology and heartbeat interval features*, IEEE TBME, 2004 (source of
-  the DS1/DS2 split and the paced-record exclusion list used here).
-- ANSI/AAMI EC57 standard for the five-way beat-class nomenclature.
+  the DS1/DS2 split and the paced-record exclusion list used here).- ANSI/AAMI EC57 standard for the five-way beat-class nomenclature.
+
