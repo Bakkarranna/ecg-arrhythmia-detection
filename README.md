@@ -264,5 +264,6 @@ CI runs two jobs: a `test` job (pytest + ruff, minimal deps) and a `smoke` job
   Med & Biol, 2001.
 - de Chazal, O'Dwyer & Reilly, *Automatic classification of heartbeats using
   ECG morphology and heartbeat interval features*, IEEE TBME, 2004 (source of
-  the DS1/DS2 split and the paced-record exclusion list used here).- ANSI/AAMI EC57 standard for the five-way beat-class nomenclature.
+  the DS1/DS2 split and the paced-record exclusion list used here).
+- ANSI/AAMI EC57 standard for the five-way beat-class nomenclature.
 
