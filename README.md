@@ -188,10 +188,12 @@ src/ecg_arrhythmia/
   train.py         training loop, seeding, standardisation, early stopping
   evaluate.py      metrics + confusion matrix
   visualize.py     all figures
-  results_table.py cross-model comparison table (CSV + Markdown)
-tests/             unit tests (pure numpy/scipy, no torch, no network)
-.github/workflows/ ci.yml  (test job + torch import-smoke job)
-requirements.txt   full deps; requirements-smoke.txt for the test suite alone
+  results_table.py      cross-model comparison table (CSV + Markdown)
+dashboard.py          static results console (HTML, python -m ecg_arrhythmia.dashboard)
+docs/                 the generated dashboard page served by GitHub Pages
+tests/                unit tests (pure numpy/scipy, no torch, no network)
+.github/workflows/    ci.yml (test job + torch import-smoke job), pages.yml
+requirements.txt      full deps; requirements-smoke.txt for the test suite alone
 notes.md           chronological decisions, data bugs, honesty rules
 ```
 
@@ -205,6 +207,26 @@ notes.md           chronological decisions, data bugs, honesty rules
 | [results/baseline_metrics.json](results/baseline_metrics.json) | RandomForest per-class metrics and confusion matrix |
 | [results/train_history.json](results/train_history.json) | Per-epoch train loss and validation macro-F1 |
 | [results/figures/](results/figures) | All seven figures shown above |
+| [docs/](docs) | Generated dashboard: [live page](https://bakkarranna.github.io/ecg-arrhythmia-detection/) |
+
+## Results dashboard
+
+A **static, dependency-free web console** built from the JSON/CSV artefacts in
+[results/](results) and published on GitHub Pages from [docs/](docs). It renders
+the headline comparison, per-class recall bars, the validation curve, both
+confusion matrices, the baseline-vs-CNN error breakdown, and a per-patient
+table (accuracy, macro-F1, class mix) for all 22 DS2 test patients — all from
+numbers already in this repository, no training or network required.
+
+Rebuild it locally:
+
+```bash
+python -m ecg_arrhythmia.dashboard        # writes docs/index.html (self-contained)
+```
+
+The unit tests cover the renderers against the checked-in artefacts
+(`tests/test_dashboard.py`, 17 of the suite's 25 tests), so the page cannot
+silently drift from `results/*.json`.
 
 ## Reproduce
 
