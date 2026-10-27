@@ -43,7 +43,7 @@ jobs:
         run: |
           python -c '
           import importlib
-          mods = ["config","data","download","features","preprocess","models","baseline","evaluate","train","visualize","results_table"]
+          mods = ["config","data","download","features","preprocess","models","baseline","evaluate","train","visualize","results_table","dashboard"]
           for m in mods:
               importlib.import_module("ecg_arrhythmia." + m)
           print("all modules import cleanly")
