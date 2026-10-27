@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ECG arrhythmia detection - results console</title>
+<meta name="description" content="Results, learning curves, confusion matrices and limitations for a five-class ECG arrhythmia classifier trained on MIT-BIH with patient-disjoint splits.">
+<meta name="color-scheme" content="light dark">
+<style>
+:root{
+  --ink:#0f172a; --ink-2:#334155; --muted:#64748b; --line:#dbe3ec;
+  --bg:#f6f8fb; --card:#ffffff; --teal:#0f4c5c; --teal-2:#0f766e;
+  --amber:#b45309; --rose:#be123c; --green:#15803d;
+  --radius:14px; --shadow:0 1px 2px rgba(15,23,42,.06),0 8px 24px rgba(15,23,42,.06);
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --ink:#e8eef6; --ink-2:#c3cede; --muted:#93a2b6; --line:#26313f;
+    --bg:#0b1220; --card:#111a2b; --teal:#7fd4c1; --teal-2:#5eead4;
+    --amber:#fbbf24; --rose:#fb7185; --green:#4ade80;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.35);
+  }
+}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:16px/1.65 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 22px 72px}
+a{color:var(--teal-2);text-decoration-thickness:1px;text-underline-offset:3px}
+code{font:0.875em/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  background:color-mix(in srgb,var(--teal) 8%,transparent);
+  padding:.15em .4em;border-radius:6px;color:inherit}
+.sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
+  clip:rect(0 0 0 0);white-space:nowrap;border:0}
+
+/* masthead */
+.mast{display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap;
+  justify-content:space-between;padding-bottom:22px;border-bottom:1px solid var(--line)}
+.eyebrow{margin:0 0 6px;font-size:.75rem;font-weight:700;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--teal-2)}
+h1{margin:0;font-size:clamp(1.7rem,1.2rem + 2vw,2.5rem);line-height:1.15;
+  letter-spacing:-.02em;font-weight:750}
+.sub{margin:10px 0 0;color:var(--muted);max-width:62ch}
+.mast-links{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.mast-links a{font-size:.875rem;font-weight:600;padding:8px 14px;border-radius:999px;
+  border:1px solid var(--line);background:var(--card);color:var(--ink)}
+.mast-links a:hover{border-color:var(--teal-2)}
+
+/* nav */
+nav.toc{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--bg) 88%,transparent);
+  backdrop-filter:blur(8px);border-bottom:1px solid var(--line);margin:0 -22px 28px;
+  padding:10px 22px;display:flex;gap:6px;flex-wrap:wrap}
+nav.toc a{font-size:.8125rem;font-weight:600;color:var(--ink-2);padding:6px 10px;
+  border-radius:8px;text-decoration:none}
+nav.toc a:hover,nav.toc a:focus-visible{background:color-mix(in srgb,var(--teal) 10%,transparent);
+  color:var(--teal)}
+
+/* blocks */
+.block{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:26px 28px;margin:0 0 22px}
+.block>h2{margin:0 0 4px;font-size:1.3rem;letter-spacing:-.01em}
+.lede{margin:0 0 18px;color:var(--muted);max-width:72ch}
+.note{color:var(--muted);font-size:.8125rem;font-weight:400;display:block;margin-top:2px}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:22px}
+
+/* kpi cards */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin:0 0 20px}
+.kpi{background:color-mix(in srgb,var(--teal) 7%,var(--card));border:1px solid var(--line);
+  border-radius:12px;padding:14px 16px}
+.kpi-plain{background:var(--card)}
+.kpi-label{margin:0;font-size:.75rem;font-weight:700;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--muted)}
+.kpi-label .hint{display:block;margin-top:3px;font-weight:500;letter-spacing:0;
+  text-transform:none;font-size:.75rem;color:var(--muted)}
+.kpi-value{margin:6px 0 0;font-size:1.65rem;font-weight:750;font-variant-numeric:tabular-nums;
+  color:var(--teal)}
+
+/* tables */
+table{width:100%;border-collapse:collapse;font-size:.9375rem}
+caption{text-align:left;color:var(--muted);font-size:.8125rem;padding:0 0 10px}
+th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:middle}
+thead th{font-size:.6875rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--muted);border-bottom:2px solid var(--line)}
+tbody tr:last-child th,tbody tr:last-child td{border-bottom:0}
+tbody tr.best{background:color-mix(in srgb,var(--teal) 9%,transparent)}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.bar-cell{width:34%;min-width:120px}
+.bar{display:block;height:9px;border-radius:999px;background:var(--teal)}
+.bar.thin{height:6px;background:var(--teal-2)}
+.bars .bar-cell{width:50%}
+.chip{display:inline-block;min-width:1.9em;text-align:center;font-size:.75rem;font-weight:700;
+  padding:2px 6px;border-radius:6px;background:color-mix(in srgb,var(--teal) 12%,transparent)}
+.c-N{color:var(--green)} .c-S{color:var(--teal)} .c-V{color:var(--amber)} .c-F,.c-Q{color:var(--rose)}
+.tag{font-size:.75rem;font-weight:600;padding:3px 8px;border-radius:6px}
+.tag.ok{color:var(--green);background:color-mix(in srgb,var(--green) 14%,transparent)}
+.tag.meh{color:var(--amber);background:color-mix(in srgb,var(--amber) 14%,transparent)}
+.tag.bad{color:var(--rose);background:color-mix(in srgb,var(--rose) 14%,transparent)}
+
+/* charts */
+svg{display:block;width:100%;height:auto}
+.chart .axis{stroke:var(--line);stroke-width:1}
+.chart .tick{fill:var(--muted);font-size:11px}
+.chart .line-loss{fill:none;stroke:var(--rose);stroke-width:2.2}
+.chart .line-val{fill:none;stroke:var(--teal-2);stroke-width:2.4}
+.chart .dot-loss{fill:var(--rose)} .chart .dot-val{fill:var(--teal-2)}
+.chart .bestline{stroke:var(--amber);stroke-width:1.2;stroke-dasharray:4 4}
+.chart .bestlabel{fill:var(--amber);font-size:11px;font-weight:700}
+.heat .lab{fill:var(--muted);font-size:12px;font-weight:700}
+.heat .cell{font-size:12px;font-weight:700}
+.heat .cellc{font-size:10.5px;opacity:.85}
+.legend{display:flex;gap:16px;flex-wrap:wrap;margin:12px 0 0;font-size:.8125rem;color:var(--muted)}
+.legend i{display:inline-block;width:22px;height:3px;border-radius:2px;margin-right:6px;
+  vertical-align:middle}
+
+/* figures */
+.figs{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:18px}
+.fig{margin:0}
+.fig img{width:100%;height:auto;border:1px solid var(--line);border-radius:10px;background:#fff}
+.fig figcaption{margin-top:8px;font-size:.8125rem;color:var(--muted)}
+
+/* honest section */
+.honest{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.honest li{padding-left:34px;position:relative;color:var(--ink-2)}
+.honest li::before{content:"!";position:absolute;left:0;top:1px;width:23px;height:23px;
+  border-radius:7px;display:grid;place-items:center;font-size:.75rem;font-weight:800;
+  color:var(--amber);background:color-mix(in srgb,var(--amber) 15%,transparent)}
+.honest strong{color:var(--ink)}
+details{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
+summary{cursor:pointer;font-size:.875rem;font-weight:600;color:var(--teal)}
+footer{margin-top:34px;padding-top:18px;border-top:1px solid var(--line);
+  color:var(--muted);font-size:.8125rem;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+@media (max-width:640px){
+  .wrap{padding:20px 14px 48px} .block{padding:18px 16px}
+  th,td{padding:8px 8px} .bar-cell{display:none}
+}
+@media print{
+  nav.toc,.mast-links{display:none} body{background:#fff}
+  .block{box-shadow:none;break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="mast"><div><p class="eyebrow">Applied ML portfolio - results console</p><h1>ECG arrhythmia detection on the MIT-BIH benchmark</h1><p class="sub">Five AAMI beat classes from 252-sample morphology windows and RR-interval features, trained patient-disjoint on DS1 and reported once on 51,149 held-out DS2 beats. Every figure below is generated from committed artefacts, never typed by hand.</p><div class="mast-links"><a href="https://github.com/Bakkarranna/ecg-arrhythmia-detection">Repository</a><a href="https://github.com/Bakkarranna">Other projects</a><a href="#results">Skip to results</a></div></div></header><nav class="toc" aria-label="Sections"><a href="#results">Results</a><a href="#charts">Curves &amp; errors</a><a href="#patients">Per-patient</a><a href="#figures">Figures</a><a href="#honest">Limitations</a><a href="#artefacts">Artefacts</a></nav><section class="block" id="results"><h2>Results</h2><p class="lede">Two models, one test split, no tuning on it. Macro metrics are unweighted per-class means, so a 388-beat class counts as much as a 44,240-beat one.</p><table class="grid"><caption>Models on the same 51,149 held-out DS2 beats</caption><thead><tr><th scope="col">Model</th><th scope="col" title="Equal weight per class">Recall</th><th scope="col" title="Positive predictive value">Precision</th><th scope="col" title="Macro-F1 minus the weakest model">Delta F1 (pts)</th><th scope="col">Macro F1</th></tr></thead><tbody><tr class=""><th scope="row">RandomForest(rr_intervals)<span class="note"></span></th><td class="num">44.90%</td><td class="num">41.86%</td><td class="num">+0.0 pts</td><td class="num">42.69%</td></tr><tr class="best"><th scope="row">BeatCNN(1D CNN + RR features)<span class="note">12 epochs, checkpoint at best validation F1, 1288s to train</span></th><td class="num">51.01%</td><td class="num">45.02%</td><td class="num">+3.2 pts</td><td class="num">45.88%</td></tr></tbody></table><div class="kpis"><div class="kpi"><p class="kpi-label">Macro recall<span class="hint">equal weight per class</span></p><p class="kpi-value">51.01%</p></div><div class="kpi"><p class="kpi-label">Macro precision<span class="hint">trust of an alarm</span></p><p class="kpi-value">45.02%</p></div><div class="kpi"><p class="kpi-label">Macro F1<span class="hint">their harmonic mean</span></p><p class="kpi-value">45.88%</p></div><div class="kpi kpi-plain"><p class="kpi-label">Test beats<span class="hint">DS2, 22 held-out patients</span></p><p class="kpi-value">51,149</p></div></div><table class="grid"><caption>Per-class scores on the DS2 test split</caption><thead><tr><th scope="col">Class</th><th scope="col">Precision</th><th scope="col">Recall</th><th scope="col">F1</th><th scope="col">Recall</th><th scope="col">Support</th></tr></thead><tbody><tr><th scope="row"><span class="chip c-N">N</span></th><td class="num">97.49%</td><td class="num">72.97%</td><td class="num">83.47%</td><td class="bar-cell"><span class="bar thin" style="width:72.97%"></span></td><td class="num">44,240</td></tr><tr><th scope="row"><span class="chip c-S">S</span></th><td class="num">3.21%</td><td class="num">15.02%</td><td class="num">5.29%</td><td class="bar-cell"><span class="bar thin" style="width:15.02%"></span></td><td class="num">1,837</td></tr><tr><th scope="row"><span class="chip c-V">V</span></th><td class="num">78.85%</td><td class="num">89.16%</td><td class="num">83.69%</td><td class="bar-cell"><span class="bar thin" style="width:89.16%"></span></td><td class="num">3,220</td></tr><tr><th scope="row"><span class="chip c-F">F</span></th><td class="num">0.39%</td><td class="num">3.35%</td><td class="num">0.69%</td><td class="bar-cell"><span class="bar thin" style="width:3.35%"></span></td><td class="num">388</td></tr><tr><th scope="row"><span class="chip c-Q">Q</span></th><td class="num">45.18%</td><td class="num">74.52%</td><td class="num">56.25%</td><td class="bar-cell"><span class="bar thin" style="width:74.52%"></span></td><td class="num">1,464</td></tr></tbody></table><table class="bars"><thead><tr><th scope="col">Class</th><th scope="col"><span class="sr">Share</span></th><th scope="col">Beats</th><th scope="col">Share</th></tr></thead><tbody><tr><th scope="row"><span class="chip c-N">N</span></th><td class="bar-cell"><span class="bar" style="width:86.49%"></span></td><td class="num">44,240</td><td class="num">86.49%</td></tr><tr><th scope="row"><span class="chip c-V">V</span></th><td class="bar-cell"><span class="bar" style="width:6.30%"></span></td><td class="num">3,220</td><td class="num">6.30%</td></tr><tr><th scope="row"><span class="chip c-S">S</span></th><td class="bar-cell"><span class="bar" style="width:3.59%"></span></td><td class="num">1,837</td><td class="num">3.59%</td></tr><tr><th scope="row"><span class="chip c-Q">Q</span></th><td class="bar-cell"><span class="bar" style="width:2.86%"></span></td><td class="num">1,464</td><td class="num">2.86%</td></tr><tr><th scope="row"><span class="chip c-F">F</span></th><td class="bar-cell"><span class="bar" style="width:0.76%"></span></td><td class="num">388</td><td class="num">0.76%</td></tr></tbody></table></section><section class="block" id="charts"><h2>Learning curves and error structure</h2><p class="lede">Left: the optimisation story. Right: where each model puts its mistakes. Rows are normalised, so read across a row as recall and down a column as contamination.</p><div class="cols"><svg viewBox="0 0 660 260" role="img" class="chart" aria-label="Training loss and validation macro-F1 across 12 epochs"><line x1="54" y1="220.0" x2="644" y2="220.0" class="axis"/><text x="54.0" y="238" class="tick">1</text><text x="107.6" y="238" class="tick">2</text><text x="161.3" y="238" class="tick">3</text><text x="214.9" y="238" class="tick">4</text><text x="268.5" y="238" class="tick">5</text><text x="322.2" y="238" class="tick">6</text><text x="375.8" y="238" class="tick">7</text><text x="429.5" y="238" class="tick">8</text><text x="483.1" y="238" class="tick">9</text><text x="536.7" y="238" class="tick">10</text><text x="590.4" y="238" class="tick">11</text><text x="644.0" y="238" class="tick">12</text><text x="54" y="14" class="tick">loss</text><text x="644" y="14" text-anchor="end" class="tick">macro-F1</text><line x1="536.7" y1="22" x2="536.7" y2="220" class="bestline"/><text x="542.7" y="34" class="bestlabel">best 35.9%</text><polyline points="54.0,22.0 107.6,113.0 161.3,132.9 214.9,145.5 268.5,154.4 322.2,157.5 375.8,168.3 429.5,168.9 483.1,176.4 536.7,179.2 590.4,180.2 644.0,183.3" class="line-loss"/><polyline points="54.0,172.3 107.6,171.8 161.3,170.2 214.9,155.3 268.5,156.2 322.2,156.7 375.8,161.8 429.5,155.1 483.1,155.1 536.7,154.1 590.4,155.4 644.0,155.5" class="line-val"/><circle cx="54.0" cy="22.0" r="2.4" class="dot-loss"/><circle cx="107.6" cy="113.0" r="2.4" class="dot-loss"/><circle cx="161.3" cy="132.9" r="2.4" class="dot-loss"/><circle cx="214.9" cy="145.5" r="2.4" class="dot-loss"/><circle cx="268.5" cy="154.4" r="2.4" class="dot-loss"/><circle cx="322.2" cy="157.5" r="2.4" class="dot-loss"/><circle cx="375.8" cy="168.3" r="2.4" class="dot-loss"/><circle cx="429.5" cy="168.9" r="2.4" class="dot-loss"/><circle cx="483.1" cy="176.4" r="2.4" class="dot-loss"/><circle cx="536.7" cy="179.2" r="2.4" class="dot-loss"/><circle cx="590.4" cy="180.2" r="2.4" class="dot-loss"/><circle cx="644.0" cy="183.3" r="2.4" class="dot-loss"/><circle cx="54.0" cy="172.3" r="2.4" class="dot-val"/><circle cx="107.6" cy="171.8" r="2.4" class="dot-val"/><circle cx="161.3" cy="170.2" r="2.4" class="dot-val"/><circle cx="214.9" cy="155.3" r="2.4" class="dot-val"/><circle cx="268.5" cy="156.2" r="2.4" class="dot-val"/><circle cx="322.2" cy="156.7" r="2.4" class="dot-val"/><circle cx="375.8" cy="161.8" r="2.4" class="dot-val"/><circle cx="429.5" cy="155.1" r="2.4" class="dot-val"/><circle cx="483.1" cy="155.1" r="2.4" class="dot-val"/><circle cx="536.7" cy="154.1" r="2.4" class="dot-val"/><circle cx="590.4" cy="155.4" r="2.4" class="dot-val"/><circle cx="644.0" cy="155.5" r="2.4" class="dot-val"/><line x1="54" y1="22" x2="54" y2="220" class="axis"/></svg><svg viewBox="0 0 362 360" role="img" class="heat" aria-label="Row-normalised confusion matrix for RandomForest(rr_intervals)"><text x="75.0" y="30" class="lab">N</text><text x="133.0" y="30" class="lab">S</text><text x="191.0" y="30" class="lab">V</text><text x="249.0" y="30" class="lab">F</text><text x="307.0" y="30" class="lab">Q</text><text x="34" y="78.0" class="lab" text-anchor="end">N</text><g><title>N to N: 41,159 beats, 93.04%</title><rect x="46" y="44" width="56" height="56" rx="6" fill="#1f5867" stroke="#cbd5e1"/><text x="74.0" y="71.0" class="cell" fill="#ffffff">93.0%</text><text x="74.0" y="87.0" class="cellc" fill="#ffffff">41,159</text></g><g><title>N to S: 572 beats, 1.29%</title><rect x="104" y="44" width="56" height="56" rx="6" fill="#f5f8fa" stroke="#cbd5e1"/><text x="132.0" y="71.0" class="cell" fill="#0f172a">1.3%</text><text x="132.0" y="87.0" class="cellc" fill="#0f172a">572</text></g><g><title>N to V: 1,730 beats, 3.91%</title><rect x="162" y="44" width="56" height="56" rx="6" fill="#eff3f6" stroke="#cbd5e1"/><text x="190.0" y="71.0" class="cell" fill="#0f172a">3.9%</text><text x="190.0" y="87.0" class="cellc" fill="#0f172a">1,730</text></g><g><title>N to F: 312 beats, 0.71%</title><rect x="220" y="44" width="56" height="56" rx="6" fill="#f6f9fb" stroke="#cbd5e1"/><text x="248.0" y="71.0" class="cell" fill="#0f172a">0.7%</text><text x="248.0" y="87.0" class="cellc" fill="#0f172a">312</text></g><g><title>N to Q: 467 beats, 1.06%</title><rect x="278" y="44" width="56" height="56" rx="6" fill="#f6f8fa" stroke="#cbd5e1"/><text x="306.0" y="71.0" class="cell" fill="#0f172a">1.1%</text><text x="306.0" y="87.0" class="cellc" fill="#0f172a">467</text></g><text x="34" y="136.0" class="lab" text-anchor="end">S</text><g><title>S to N: 1,205 beats, 65.60%</title><rect x="46" y="102" width="56" height="56" rx="6" fill="#5f8893" stroke="#cbd5e1"/><text x="74.0" y="129.0" class="cell" fill="#ffffff">65.6%</text><text x="74.0" y="145.0" class="cellc" fill="#ffffff">1,205</text></g><g><title>S to S: 86 beats, 4.68%</title><rect x="104" y="102" width="56" height="56" rx="6" fill="#edf2f5" stroke="#cbd5e1"/><text x="132.0" y="129.0" class="cell" fill="#0f172a">4.7%</text><text x="132.0" y="145.0" class="cellc" fill="#0f172a">86</text></g><g><title>S to V: 488 beats, 26.57%</title><rect x="162" y="102" width="56" height="56" rx="6" fill="#baccd1" stroke="#cbd5e1"/><text x="190.0" y="129.0" class="cell" fill="#0f172a">26.6%</text><text x="190.0" y="145.0" class="cellc" fill="#0f172a">488</text></g><g><title>S to F: 4 beats, 0.22%</title><rect x="220" y="102" width="56" height="56" rx="6" fill="#f7fafc" stroke="#cbd5e1"/><text x="248.0" y="129.0" class="cell" fill="#0f172a">0.2%</text><text x="248.0" y="145.0" class="cellc" fill="#0f172a">4</text></g><g><title>S to Q: 54 beats, 2.94%</title><rect x="278" y="102" width="56" height="56" rx="6" fill="#f1f5f7" stroke="#cbd5e1"/><text x="306.0" y="129.0" class="cell" fill="#0f172a">2.9%</text><text x="306.0" y="145.0" class="cellc" fill="#0f172a">54</text></g><text x="34" y="194.0" class="lab" text-anchor="end">V</text><g><title>V to N: 481 beats, 14.94%</title><rect x="46" y="160" width="56" height="56" rx="6" fill="#d5e0e4" stroke="#cbd5e1"/><text x="74.0" y="187.0" class="cell" fill="#0f172a">14.9%</text><text x="74.0" y="203.0" class="cellc" fill="#0f172a">481</text></g><g><title>V to S: 180 beats, 5.59%</title><rect x="104" y="160" width="56" height="56" rx="6" fill="#ebf0f3" stroke="#cbd5e1"/><text x="132.0" y="187.0" class="cell" fill="#0f172a">5.6%</text><text x="132.0" y="203.0" class="cellc" fill="#0f172a">180</text></g><g><title>V to V: 2,453 beats, 76.18%</title><rect x="162" y="160" width="56" height="56" rx="6" fill="#477582" stroke="#cbd5e1"/><text x="190.0" y="187.0" class="cell" fill="#ffffff">76.2%</text><text x="190.0" y="203.0" class="cellc" fill="#ffffff">2,453</text></g><g><title>V to F: 14 beats, 0.43%</title><rect x="220" y="160" width="56" height="56" rx="6" fill="#f7f9fb" stroke="#cbd5e1"/><text x="248.0" y="187.0" class="cell" fill="#0f172a">0.4%</text><text x="248.0" y="203.0" class="cellc" fill="#0f172a">14</text></g><g><title>V to Q: 92 beats, 2.86%</title><rect x="278" y="160" width="56" height="56" rx="6" fill="#f1f5f7" stroke="#cbd5e1"/><text x="306.0" y="187.0" class="cell" fill="#0f172a">2.9%</text><text x="306.0" y="203.0" class="cellc" fill="#0f172a">92</text></g><text x="34" y="252.0" class="lab" text-anchor="end">F</text><g><title>F to N: 353 beats, 90.98%</title><rect x="46" y="218" width="56" height="56" rx="6" fill="#245c6a" stroke="#cbd5e1"/><text x="74.0" y="245.0" class="cell" fill="#ffffff">91.0%</text><text x="74.0" y="261.0" class="cellc" fill="#ffffff">353</text></g><g><title>F to S: 0 beats, 0.00%</title><rect x="104" y="218" width="56" height="56" rx="6" fill="#f8fafc" stroke="#cbd5e1"/><text x="132.0" y="245.0" class="cell" fill="#0f172a">0.0%</text><text x="132.0" y="261.0" class="cellc" fill="#0f172a">0</text></g><g><title>F to V: 20 beats, 5.15%</title><rect x="162" y="218" width="56" height="56" rx="6" fill="#ecf1f4" stroke="#cbd5e1"/><text x="190.0" y="245.0" class="cell" fill="#0f172a">5.2%</text><text x="190.0" y="261.0" class="cellc" fill="#0f172a">20</text></g><g><title>F to F: 14 beats, 3.61%</title><rect x="220" y="218" width="56" height="56" rx="6" fill="#f0f4f6" stroke="#cbd5e1"/><text x="248.0" y="245.0" class="cell" fill="#0f172a">3.6%</text><text x="248.0" y="261.0" class="cellc" fill="#0f172a">14</text></g><g><title>F to Q: 1 beats, 0.26%</title><rect x="278" y="218" width="56" height="56" rx="6" fill="#f7fafc" stroke="#cbd5e1"/><text x="306.0" y="245.0" class="cell" fill="#0f172a">0.3%</text><text x="306.0" y="261.0" class="cellc" fill="#0f172a">1</text></g><text x="34" y="310.0" class="lab" text-anchor="end">Q</text><g><title>Q to N: 307 beats, 20.97%</title><rect x="46" y="276" width="56" height="56" rx="6" fill="#c7d6da" stroke="#cbd5e1"/><text x="74.0" y="303.0" class="cell" fill="#0f172a">21.0%</text><text x="74.0" y="319.0" class="cellc" fill="#0f172a">307</text></g><g><title>Q to S: 224 beats, 15.30%</title><rect x="104" y="276" width="56" height="56" rx="6" fill="#d4dfe4" stroke="#cbd5e1"/><text x="132.0" y="303.0" class="cell" fill="#0f172a">15.3%</text><text x="132.0" y="319.0" class="cellc" fill="#0f172a">224</text></g><g><title>Q to V: 245 beats, 16.73%</title><rect x="162" y="276" width="56" height="56" rx="6" fill="#d1dde1" stroke="#cbd5e1"/><text x="190.0" y="303.0" class="cell" fill="#0f172a">16.7%</text><text x="190.0" y="319.0" class="cellc" fill="#0f172a">245</text></g><g><title>Q to F: 0 beats, 0.00%</title><rect x="220" y="276" width="56" height="56" rx="6" fill="#f8fafc" stroke="#cbd5e1"/><text x="248.0" y="303.0" class="cell" fill="#0f172a">0.0%</text><text x="248.0" y="319.0" class="cellc" fill="#0f172a">0</text></g><g><title>Q to Q: 688 beats, 46.99%</title><rect x="278" y="276" width="56" height="56" rx="6" fill="#8ba8b1" stroke="#cbd5e1"/><text x="306.0" y="303.0" class="cell" fill="#0f172a">47.0%</text><text x="306.0" y="319.0" class="cellc" fill="#0f172a">688</text></g><text x="191.0" y="356" class="lab">predicted class</text><text x="14" y="189.0" class="lab" transform="rotate(-90 14 189.0 )">true class</text></svg><svg viewBox="0 0 362 360" role="img" class="heat" aria-label="Row-normalised confusion matrix for BeatCNN(1D CNN + RR features)"><text x="75.0" y="30" class="lab">N</text><text x="133.0" y="30" class="lab">S</text><text x="191.0" y="30" class="lab">V</text><text x="249.0" y="30" class="lab">F</text><text x="307.0" y="30" class="lab">Q</text><text x="34" y="78.0" class="lab" text-anchor="end">N</text><g><title>N to N: 32,283 beats, 72.97%</title><rect x="46" y="44" width="56" height="56" rx="6" fill="#4e7b87" stroke="#cbd5e1"/><text x="74.0" y="71.0" class="cell" fill="#ffffff">73.0%</text><text x="74.0" y="87.0" class="cellc" fill="#ffffff">32,283</text></g><g><title>N to S: 7,594 beats, 17.17%</title><rect x="104" y="44" width="56" height="56" rx="6" fill="#d0dce1" stroke="#cbd5e1"/><text x="132.0" y="71.0" class="cell" fill="#0f172a">17.2%</text><text x="132.0" y="87.0" class="cellc" fill="#0f172a">7,594</text></g><g><title>N to V: 399 beats, 0.90%</title><rect x="162" y="44" width="56" height="56" rx="6" fill="#f6f8fb" stroke="#cbd5e1"/><text x="190.0" y="71.0" class="cell" fill="#0f172a">0.9%</text><text x="190.0" y="87.0" class="cellc" fill="#0f172a">399</text></g><g><title>N to F: 3,186 beats, 7.20%</title><rect x="220" y="44" width="56" height="56" rx="6" fill="#e7edf0" stroke="#cbd5e1"/><text x="248.0" y="71.0" class="cell" fill="#0f172a">7.2%</text><text x="248.0" y="87.0" class="cellc" fill="#0f172a">3,186</text></g><g><title>N to Q: 778 beats, 1.76%</title><rect x="278" y="44" width="56" height="56" rx="6" fill="#f4f7f9" stroke="#cbd5e1"/><text x="306.0" y="71.0" class="cell" fill="#0f172a">1.8%</text><text x="306.0" y="87.0" class="cellc" fill="#0f172a">778</text></g><text x="34" y="136.0" class="lab" text-anchor="end">S</text><g><title>S to N: 781 beats, 42.51%</title><rect x="46" y="102" width="56" height="56" rx="6" fill="#95b0b8" stroke="#cbd5e1"/><text x="74.0" y="129.0" class="cell" fill="#0f172a">42.5%</text><text x="74.0" y="145.0" class="cellc" fill="#0f172a">781</text></g><g><title>S to S: 276 beats, 15.02%</title><rect x="104" y="102" width="56" height="56" rx="6" fill="#d5e0e4" stroke="#cbd5e1"/><text x="132.0" y="129.0" class="cell" fill="#0f172a">15.0%</text><text x="132.0" y="145.0" class="cellc" fill="#0f172a">276</text></g><g><title>S to V: 236 beats, 12.85%</title><rect x="162" y="102" width="56" height="56" rx="6" fill="#dae4e7" stroke="#cbd5e1"/><text x="190.0" y="129.0" class="cell" fill="#0f172a">12.8%</text><text x="190.0" y="145.0" class="cellc" fill="#0f172a">236</text></g><g><title>S to F: 53 beats, 2.89%</title><rect x="220" y="102" width="56" height="56" rx="6" fill="#f1f5f7" stroke="#cbd5e1"/><text x="248.0" y="129.0" class="cell" fill="#0f172a">2.9%</text><text x="248.0" y="145.0" class="cellc" fill="#0f172a">53</text></g><g><title>S to Q: 491 beats, 26.73%</title><rect x="278" y="102" width="56" height="56" rx="6" fill="#bacbd1" stroke="#cbd5e1"/><text x="306.0" y="129.0" class="cell" fill="#0f172a">26.7%</text><text x="306.0" y="145.0" class="cellc" fill="#0f172a">491</text></g><text x="34" y="194.0" class="lab" text-anchor="end">V</text><g><title>V to N: 10 beats, 0.31%</title><rect x="46" y="160" width="56" height="56" rx="6" fill="#f7f9fc" stroke="#cbd5e1"/><text x="74.0" y="187.0" class="cell" fill="#0f172a">0.3%</text><text x="74.0" y="203.0" class="cellc" fill="#0f172a">10</text></g><g><title>V to S: 184 beats, 5.71%</title><rect x="104" y="160" width="56" height="56" rx="6" fill="#ebf0f3" stroke="#cbd5e1"/><text x="132.0" y="187.0" class="cell" fill="#0f172a">5.7%</text><text x="132.0" y="203.0" class="cellc" fill="#0f172a">184</text></g><g><title>V to V: 2,871 beats, 89.16%</title><rect x="162" y="160" width="56" height="56" rx="6" fill="#285f6d" stroke="#cbd5e1"/><text x="190.0" y="187.0" class="cell" fill="#ffffff">89.2%</text><text x="190.0" y="203.0" class="cellc" fill="#ffffff">2,871</text></g><g><title>V to F: 102 beats, 3.17%</title><rect x="220" y="160" width="56" height="56" rx="6" fill="#f1f4f7" stroke="#cbd5e1"/><text x="248.0" y="187.0" class="cell" fill="#0f172a">3.2%</text><text x="248.0" y="203.0" class="cellc" fill="#0f172a">102</text></g><g><title>V to Q: 53 beats, 1.65%</title><rect x="278" y="160" width="56" height="56" rx="6" fill="#f4f7f9" stroke="#cbd5e1"/><text x="306.0" y="187.0" class="cell" fill="#0f172a">1.6%</text><text x="306.0" y="203.0" class="cellc" fill="#0f172a">53</text></g><text x="34" y="252.0" class="lab" text-anchor="end">F</text><g><title>F to N: 24 beats, 6.19%</title><rect x="46" y="218" width="56" height="56" rx="6" fill="#eaeff2" stroke="#cbd5e1"/><text x="74.0" y="245.0" class="cell" fill="#0f172a">6.2%</text><text x="74.0" y="261.0" class="cellc" fill="#0f172a">24</text></g><g><title>F to S: 266 beats, 68.56%</title><rect x="104" y="218" width="56" height="56" rx="6" fill="#58838e" stroke="#cbd5e1"/><text x="132.0" y="245.0" class="cell" fill="#ffffff">68.6%</text><text x="132.0" y="261.0" class="cellc" fill="#ffffff">266</text></g><g><title>F to V: 83 beats, 21.39%</title><rect x="162" y="218" width="56" height="56" rx="6" fill="#c6d5da" stroke="#cbd5e1"/><text x="190.0" y="245.0" class="cell" fill="#0f172a">21.4%</text><text x="190.0" y="261.0" class="cellc" fill="#0f172a">83</text></g><g><title>F to F: 13 beats, 3.35%</title><rect x="220" y="218" width="56" height="56" rx="6" fill="#f0f4f7" stroke="#cbd5e1"/><text x="248.0" y="245.0" class="cell" fill="#0f172a">3.4%</text><text x="248.0" y="261.0" class="cellc" fill="#0f172a">13</text></g><g><title>F to Q: 2 beats, 0.52%</title><rect x="278" y="218" width="56" height="56" rx="6" fill="#f7f9fb" stroke="#cbd5e1"/><text x="306.0" y="245.0" class="cell" fill="#0f172a">0.5%</text><text x="306.0" y="261.0" class="cellc" fill="#0f172a">2</text></g><text x="34" y="310.0" class="lab" text-anchor="end">Q</text><g><title>Q to N: 17 beats, 1.16%</title><rect x="46" y="276" width="56" height="56" rx="6" fill="#f5f8fa" stroke="#cbd5e1"/><text x="74.0" y="303.0" class="cell" fill="#0f172a">1.2%</text><text x="74.0" y="319.0" class="cellc" fill="#0f172a">17</text></g><g><title>Q to S: 287 beats, 19.60%</title><rect x="104" y="276" width="56" height="56" rx="6" fill="#cad8dd" stroke="#cbd5e1"/><text x="132.0" y="303.0" class="cell" fill="#0f172a">19.6%</text><text x="132.0" y="319.0" class="cellc" fill="#0f172a">287</text></g><g><title>Q to V: 52 beats, 3.55%</title><rect x="162" y="276" width="56" height="56" rx="6" fill="#f0f4f6" stroke="#cbd5e1"/><text x="190.0" y="303.0" class="cell" fill="#0f172a">3.6%</text><text x="190.0" y="319.0" class="cellc" fill="#0f172a">52</text></g><g><title>Q to F: 17 beats, 1.16%</title><rect x="220" y="276" width="56" height="56" rx="6" fill="#f5f8fa" stroke="#cbd5e1"/><text x="248.0" y="303.0" class="cell" fill="#0f172a">1.2%</text><text x="248.0" y="319.0" class="cellc" fill="#0f172a">17</text></g><g><title>Q to Q: 1,091 beats, 74.52%</title><rect x="278" y="276" width="56" height="56" rx="6" fill="#4a7885" stroke="#cbd5e1"/><text x="306.0" y="303.0" class="cell" fill="#ffffff">74.5%</text><text x="306.0" y="319.0" class="cellc" fill="#ffffff">1,091</text></g><text x="191.0" y="356" class="lab">predicted class</text><text x="14" y="189.0" class="lab" transform="rotate(-90 14 189.0 )">true class</text></svg></div><ul class="legend"><li><i style="background:var(--rose)"></i>train loss</li><li><i style="background:var(--teal-2)"></i>validation macro-F1</li><li><i style="background:var(--amber)"></i>best checkpoint</li></ul></section><section class="block" id="patients"><h2>Per-patient breakdown</h2><p class="lede">A single aggregate hides whether a model fails everywhere or on a few hard recordings. These rows are recomputed from the committed prediction dump.</p><table class="grid"><caption>Per-record accuracy on the DS2 patients, recomputed from predictions.npz</caption><thead><tr><th scope="col">Patient record</th><th scope="col">Beats</th><th scope="col">Accuracy</th><th scope="col">Errors</th><th scope="col">Most common mistake</th></tr></thead><tbody><tr><th scope="row">record 100</th><td class="num">2,271</td><td class="num">99.21%</td><td class="num">18</td><td><span class="tag meh">S-&gt;N</span></td></tr><tr><th scope="row">record 103</th><td class="num">2,089</td><td class="num">99.43%</td><td class="num">12</td><td><span class="tag meh">N-&gt;S</span></td></tr><tr><th scope="row">record 105</th><td class="num">2,690</td><td class="num">9.67%</td><td class="num">2,430</td><td><span class="tag bad">N-&gt;S</span></td></tr><tr><th scope="row">record 111</th><td class="num">2,132</td><td class="num">79.22%</td><td class="num">443</td><td><span class="tag meh">N-&gt;S</span></td></tr><tr><th scope="row">record 113</th><td class="num">1,794</td><td class="num">99.83%</td><td class="num">3</td><td><span class="tag meh">N-&gt;S</span></td></tr><tr><th scope="row">record 117</th><td class="num">1,537</td><td class="num">99.67%</td><td class="num">5</td><td><span class="tag meh">N-&gt;Q</span></td></tr><tr><th scope="row">record 121</th><td class="num">1,874</td><td class="num">98.88%</td><td class="num">21</td><td><span class="tag meh">N-&gt;S</span></td></tr><tr><th scope="row">record 123</th><td class="num">1,517</td><td class="num">99.60%</td><td class="num">6</td><td><span class="tag meh">V-&gt;S</span></td></tr><tr><th scope="row">record 200</th><td class="num">2,790</td><td class="num">87.81%</td><td class="num">340</td><td><span class="tag meh">N-&gt;Q</span></td></tr><tr><th scope="row">record 202</th><td class="num">2,145</td><td class="num">62.28%</td><td class="num">809</td><td><span class="tag bad">N-&gt;F</span></td></tr><tr><th scope="row">record 210</th><td class="num">2,682</td><td class="num">18.01%</td><td class="num">2,199</td><td><span class="tag bad">N-&gt;S</span></td></tr><tr><th scope="row">record 212</th><td class="num">2,762</td><td class="num">97.57%</td><td class="num">67</td><td><span class="tag meh">N-&gt;F</span></td></tr><tr><th scope="row">record 213</th><td class="num">3,292</td><td class="num">71.66%</td><td class="num">933</td><td><span class="tag meh">N-&gt;S</span></td></tr><tr><th scope="row">record 214</th><td class="num">2,294</td><td class="num">32.91%</td><td class="num">1,539</td><td><span class="tag bad">N-&gt;F</span></td></tr><tr><th scope="row">record 219</th><td class="num">2,312</td><td class="num">79.37%</td><td class="num">477</td><td><span class="tag meh">N-&gt;S</span></td></tr><tr><th scope="row">record 221</th><td class="num">2,461</td><td class="num">82.36%</td><td class="num">434</td><td><span class="tag meh">N-&gt;F</span></td></tr><tr><th scope="row">record 222</th><td class="num">2,631</td><td class="num">66.51%</td><td class="num">881</td><td><span class="tag bad">N-&gt;S</span></td></tr><tr><th scope="row">record 228</th><td class="num">2,140</td><td class="num">91.21%</td><td class="num">188</td><td><span class="tag meh">V-&gt;S</span></td></tr><tr><th scope="row">record 231</th><td class="num">2,009</td><td class="num">91.04%</td><td class="num">180</td><td><span class="tag meh">Q-&gt;S</span></td></tr><tr><th scope="row">record 232</th><td class="num">1,815</td><td class="num">22.75%</td><td class="num">1,402</td><td><span class="tag bad">S-&gt;N</span></td></tr><tr><th scope="row">record 233</th><td class="num">3,149</td><td class="num">34.46%</td><td class="num">2,064</td><td><span class="tag bad">N-&gt;S</span></td></tr><tr><th scope="row">record 234</th><td class="num">2,763</td><td class="num">94.06%</td><td class="num">164</td><td><span class="tag meh">N-&gt;F</span></td></tr></tbody></table></section><section class="block" id="figures"><h2>Committed figures</h2><p class="lede">Generated by <code>python -m ecg_arrhythmia.visualize</code> and committed to the repository, so they render on GitHub Pages with no build step and no network request.</p><div class="figs"><figure class="fig"><img loading="lazy" src="figures/class_distribution.png" alt="The imbalance the class weights exist for: N is 86.5% of the 51,149 DS2 beats and F has only 388."><figcaption>The imbalance the class weights exist for: N is 86.5% of the 51,149 DS2 beats and F has only 388.</figcaption></figure><figure class="fig"><img loading="lazy" src="figures/confusion_baseline.png" alt="RandomForest over RR intervals only. Most true V beats land in N (1,730 of 3,220), which is what a rhythm-only feature set costs."><figcaption>RandomForest over RR intervals only. Most true V beats land in N (1,730 of 3,220), which is what a rhythm-only feature set costs.</figcaption></figure><figure class="fig"><img loading="lazy" src="figures/confusion_cnn.png" alt="BeatCNN over waveform + RR. V recall rises to 0.89 and the V-&gt;N column collapses to 481 rows, while ~7,600 true N beats spill into S."><figcaption>BeatCNN over waveform + RR. V recall rises to 0.89 and the V-&gt;N column collapses to 481 rows, while ~7,600 true N beats spill into S.</figcaption></figure><figure class="fig"><img loading="lazy" src="figures/ecg_strip_100.png" alt="One raw MLII strip straight from wfdb before preprocessing, used to confirm the download, the 360 Hz sampling and annotation alignment."><figcaption>One raw MLII strip straight from wfdb before preprocessing, used to confirm the download, the 360 Hz sampling and annotation alignment.</figcaption></figure><figure class="fig"><img loading="lazy" src="figures/mean_beat_waveforms.png" alt="Per-class mean morphology over the 252-sample window. The widened, notched Q and the sharp V are the signal the CNN reads and the RR features cannot express."><figcaption>Per-class mean morphology over the 252-sample window. The widened, notched Q and the sharp V are the signal the CNN reads and the RR features cannot express.</figcaption></figure><figure class="fig"><img loading="lazy" src="figures/rr_intervals.png" alt="RR-interval distributions per class - the RandomForest&#x27;s entire input. Enough for a coarse rate story, not enough to split S from F."><figcaption>RR-interval distributions per class - the RandomForest&#x27;s entire input. Enough for a coarse rate story, not enough to split S from F.</figcaption></figure><figure class="fig"><img loading="lazy" src="figures/training_curves.png" alt="Weighted cross-entropy falls monotonically while DS1 validation macro-F1 plateaus near 0.35 from epoch 8 - the point early stopping takes its checkpoint from."><figcaption>Weighted cross-entropy falls monotonically while DS1 validation macro-F1 plateaus near 0.35 from epoch 8 - the point early stopping takes its checkpoint from.</figcaption></figure></div></section><section class="block" id="honest"><h2>What this does not show</h2><p class="lede">A results page that only lists wins is not a results page. These are the numbers the artefacts give up when read carefully.</p><ul class="honest"><li><strong>F is the failure mode.</strong> F1 0.69% on 388 beats. A class this rare is easy to lose inside a weighted loss; the honest reading is that the pipeline does not solve F, it solves the three classes that carry the volume.</li><li><strong>Precision is bought with S.</strong> N precision 97.49% forces S precision to 3.21% - 7,594 true N beats in the baseline confusion matrix come from that trade. For screening that is the right direction; for per-beat annotation it is not.</li><li><strong>Synthetic pipeline, real benchmark.</strong> The beat windowing, AAMI mapping and split follow de Chazal et al. (2006) and are re-implemented here, not imported. The RandomForest baseline exists to show the shallow model's ceiling, not to beat it.</li><li><strong>Beats, not rhythms.</strong> Every sample is an independently labelled 252-sample window. Atrial fibrillation, the arrhythmia clinicians care most about, is a rhythm-level property and is invisible to this input representation.</li></ul></section><section class="block" id="artefacts"><h2>Raw artefacts</h2><p class="lede">The same JSON the page was rendered from, inlined so the numbers above can be checked without cloning the repo.</p><details><summary>baseline_metrics.json</summary><pre><code>{
+  &quot;class_distribution&quot;: {
+    &quot;F&quot;: 388,
+    &quot;N&quot;: 44240,
+    &quot;Q&quot;: 1464,
+    &quot;S&quot;: 1837,
+    &quot;V&quot;: 3220
+  },
+  &quot;confusion_matrix&quot;: {
+    &quot;labels&quot;: [
+      &quot;N&quot;,
+      &quot;S&quot;,
+      &quot;V&quot;,
+      &quot;F&quot;,
+      &quot;Q&quot;
+    ],
+    &quot;matrix&quot;: [
+      [
+        41159,
+        572,
+        1730,
+        312,
+        467
+      ],
+      [
+        1205,
+        86,
+        488,
+        4,
+        54
+      ],
+      [
+        481,
+        180,
+        2453,
+        14,
+        92
+      ],
+      [
+        353,
+        0,
+        20,
+        14,
+        1
+      ],
+      [
+        307,
+        224,
+        245,
+        0,
+        688
+      ]
+    ]
+  },
+  &quot;macro_f1&quot;: 0.4269,
+  &quot;macro_precision&quot;: 0.4186,
+  &quot;macro_recall&quot;: 0.449,
+  &quot;model&quot;: &quot;RandomForest(rr_intervals)&quot;,
+  &quot;n_samples&quot;: 51149,
+  &quot;per_class&quot;: {
+    &quot;F&quot;: {
+      &quot;f1-score&quot;: 0.0383,
+      &quot;precision&quot;: 0.0407,
+      &quot;recall&quot;: 0.0361,
+      &quot;support&quot;: 388.0
+    },
+    &quot;N&quot;: {
+      &quot;f1-score&quot;: 0.9382,
+      &quot;precision&quot;: 0.9461,
+      &quot;recall&quot;: 0.9304,
+      &quot;support&quot;: 44240.0
+    },
+    &quot;Q&quot;: {
+      &quot;f1-score&quot;: 0.4975,
+      &quot;precision&quot;: 0.5284,
+      &quot;recall&quot;: 0.4699,
+      &quot;support&quot;: 1464.0
+    },
+    &quot;S&quot;: {
+      &quot;f1-score&quot;: 0.0593,
+      &quot;precision&quot;: 0.081,
+      &quot;recall&quot;: 0.0468,
+      &quot;support&quot;: 1837.0
+    },
+    &quot;V&quot;: {
+      &quot;f1-score&quot;: 0.6015,
+      &quot;precision&quot;: 0.497,
+      &quot;recall&quot;: 0.7618,
+      &quot;support&quot;: 3220.0
+    }
+  }
+}</code></pre></details><details><summary>cnn_metrics.json</summary><pre><code>{
+  &quot;best_val_macro_f1&quot;: 0.3592,
+  &quot;class_distribution&quot;: {
+    &quot;F&quot;: 388,
+    &quot;N&quot;: 44240,
+    &quot;Q&quot;: 1464,
+    &quot;S&quot;: 1837,
+    &quot;V&quot;: 3220
+  },
+  &quot;confusion_matrix&quot;: {
+    &quot;labels&quot;: [
+      &quot;N&quot;,
+      &quot;S&quot;,
+      &quot;V&quot;,
+      &quot;F&quot;,
+      &quot;Q&quot;
+    ],
+    &quot;matrix&quot;: [
+      [
+        32283,
+        7594,
+        399,
+        3186,
+        778
+      ],
+      [
+        781,
+        276,
+        236,
+        53,
+        491
+      ],
+      [
+        10,
+        184,
+        2871,
+        102,
+        53
+      ],
+      [
+        24,
+        266,
+        83,
+        13,
+        2
+      ],
+      [
+        17,
+        287,
+        52,
+        17,
+        1091
+      ]
+    ]
+  },
+  &quot;epochs_ran&quot;: 12,
+  &quot;macro_f1&quot;: 0.4588,
+  &quot;macro_precision&quot;: 0.4502,
+  &quot;macro_recall&quot;: 0.5101,
+  &quot;model&quot;: &quot;BeatCNN(1D CNN + RR features)&quot;,
+  &quot;n_samples&quot;: 51149,
+  &quot;per_class&quot;: {
+    &quot;F&quot;: {
+      &quot;f1-score&quot;: 0.0069,
+      &quot;precision&quot;: 0.0039,
+      &quot;recall&quot;: 0.0335,
+      &quot;support&quot;: 388.0
+    },
+    &quot;N&quot;: {
+      &quot;f1-score&quot;: 0.8347,
+      &quot;precision&quot;: 0.9749,
+      &quot;recall&quot;: 0.7297,
+      &quot;support&quot;: 44240.0
+    },
+    &quot;Q&quot;: {
+      &quot;f1-score&quot;: 0.5625,
+      &quot;precision&quot;: 0.4518,
+      &quot;recall&quot;: 0.7452,
+      &quot;support&quot;: 1464.0
+    },
+    &quot;S&quot;: {
+      &quot;f1-score&quot;: 0.0529,
+      &quot;precision&quot;: 0.0321,
+      &quot;recall&quot;: 0.1502,
+      &quot;support&quot;: 1837.0
+    },
+    &quot;V&quot;: {
+      &quot;f1-score&quot;: 0.8369,
+      &quot;precision&quot;: 0.7885,
+      &quot;recall&quot;: 0.8916,
+      &quot;support&quot;: 3220.0
+    }
+  },
+  &quot;training_seconds&quot;: 1288.5
+}</code></pre></details><details><summary>train_history.json</summary><pre><code>{
+  &quot;best_val_macro_f1&quot;: 0.3592166365187053,
+  &quot;epochs&quot;: [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12
+  ],
+  &quot;train_loss&quot;: [
+    0.8760281338075129,
+    0.47361892918185927,
+    0.3855360787035536,
+    0.32943639386447743,
+    0.2903878230006818,
+    0.27652630714163223,
+    0.22856074880827665,
+    0.22611215811965416,
+    0.19297918883795273,
+    0.18072456749042448,
+    0.17593377891873785,
+    0.16242750827108984
+  ],
+  &quot;val_macro_f1&quot;: [
+    0.26010209284025776,
+    0.2626843872305658,
+    0.27151127773744943,
+    0.3527388561296263,
+    0.3478484692817062,
+    0.34535162606287617,
+    0.3174830812033923,
+    0.3537849765732658,
+    0.35417676617001764,
+    0.3592166365187053,
+    0.3525559093093743,
+    0.3519457993658513
+  ]
+}</code></pre></details></section>
+<footer>
+  <p>Generated from the committed JSON artefacts by
+     <code>python -m ecg_arrhythmia.dashboard</code> from the committed results/ artefacts.</p>
+  <p><a href="https://github.com/Bakkarranna/ecg-arrhythmia-detection">Source on GitHub</a></p>
+</footer>
+</div>
+</body>
+</html>
