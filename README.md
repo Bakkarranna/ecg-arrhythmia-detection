@@ -8,6 +8,9 @@ features, and a 1D CNN over the raw beat waveform plus those RR features.
 The point of the project is methodological: report metrics that cannot be
 inflated by leakage, on patients the models have never seen.
 
+**Live results dashboard (GitHub Pages):** <https://bakkarranna.github.io/ecg-arrhythmia-detection/> — every
+metric, figure and per-patient table below, in a browser.
+
 ---
 
 ## Headline result
