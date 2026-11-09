@@ -272,7 +272,7 @@ CI runs two jobs: a `test` job (pytest + ruff, minimal deps) and a `smoke` job
 ## Known limitations
 
 - Macro-F1 is ~0.46; this is a legitimate, reproducible result on the hard
-  five-way task, not a tuned state-of-the-art number.
+  five-way task, not a number tuned to beat published results.
 - The CNN's `N` recall (0.73) is *worse* than the baseline's (0.93), so despite
   the better macro-F1 it produces far more false positives on normal beats. If
   the deployment goal were "don't miss arrhythmias", `V` recall 0.89 with
